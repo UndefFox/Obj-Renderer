@@ -6,7 +6,6 @@ add_executable(BoxRender
     fileController.cpp fileController.h    
     graphics/renderEngine.cpp graphics/renderEngine.h
     graphics/privateRenderEngine.cpp graphics/privateRenderEngine.h
-    shapeGenerator.h shapeGenerator.cpp
 )
 target_link_libraries(BoxRender
     vulkan

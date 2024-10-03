@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "graphics/renderEngine.h"
-#include "shapeGenerator.h"
+#include "fileController.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.hpp"
@@ -17,7 +17,7 @@ int main() {
 
     engine.initialize();
 
-    engine.setVetecies(ShapeGenerator::box(2.0f, 1.0f, 1.0f));
+    engine.setVetecies(FileController::readObjFile("./box.obj"));
     engine.setCamera(30.0f, 45.0f, 2.0f, -0.2f, 90.0f);
     engine.setImage(size, {0, 0, 0, 0});
 
