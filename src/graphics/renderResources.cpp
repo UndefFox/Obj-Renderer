@@ -133,7 +133,7 @@ void RenderResources::initializeRenderImage(std::uint32_t width, std::uint32_t h
     imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -145,11 +145,12 @@ void RenderResources::initializeRenderImage(std::uint32_t width, std::uint32_t h
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &renderImageMemory);
 
     vkBindImageMemory(renderDevice.logicalDevice, renderImage, renderImageMemory, 0);
+
 
     VkImageViewCreateInfo imageViewInfo{};
     imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -288,6 +289,8 @@ void RenderResources::initializeBaseColorTexture(const std::uint8_t *image, std:
         height,
         1
     };
+
+    
 
     vkCmdCopyBufferToImage(
         renderDevice.universalBuffer,

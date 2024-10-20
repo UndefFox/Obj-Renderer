@@ -31,6 +31,8 @@ public:
     RenderResources(const RenderParametrs &parametrs, RenderDevice &device);
     ~RenderResources();
 
+    std::uint32_t findMemoryType(std::uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+
 private:
     void initializeModelVertices(const Vertex *vertices, unsigned int count);
     void destroyModelVertices();
@@ -47,5 +49,5 @@ private:
     void initializeDefaultSempler();
     void destroyDefaultSampler();
 
-    std::uint32_t findMemoryType(std::uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+    
 };
