@@ -1,16 +1,21 @@
 
-add_executable(BoxRender 
+add_executable(obj-renderer 
     main.cpp
     stb_image_write.hpp
     stb_image.hpp
     fileController.cpp fileController.h    
     graphics/renderEngine.cpp graphics/renderEngine.h
-    graphics/privateRenderEngine.cpp graphics/privateRenderEngine.h
+    graphics/renderDevice.cpp graphics/renderDevice.h
+    graphics/renderResources.cpp graphics/renderResources.h
+    graphics/renderColorPass.cpp graphics/renderColorPass.h
+    graphics/vertex.h
+    graphics/uboCamera.h
+    graphics/renderParametrs.h
 )
-target_link_libraries(BoxRender
+target_link_libraries(obj-renderer
     vulkan
 )
-target_include_directories(BoxRender PRIVATE
+target_include_directories(obj-renderer PRIVATE
     ./
 )
 

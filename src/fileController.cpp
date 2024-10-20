@@ -27,7 +27,6 @@ std::vector<Vertex> readObjFile(const std::string &path) {
     std::ifstream file(path);
 
     std::vector<std::array<float, 3>> positions;
-    std::vector<std::array<float, 3>> normals;
     std::vector<std::array<float, 2>> textures;
 
     if (file.is_open()) {
@@ -61,18 +60,6 @@ std::vector<Vertex> readObjFile(const std::string &path) {
                 
                 textures.push_back(texture);
             }
-            else if (param == std::string("vn")) {
-                std::array<float, 3> normal;
-
-                getline(params, param, ' ');
-                normal[0] = std::atof(param.data());
-                getline(params, param, ' ');
-                normal[1] = std::atof(param.data());
-                getline(params, param, ' ');
-                normal[2] = std::atof(param.data());
-                
-                normals.push_back(normal);
-            }
             
             else if (param == std::string("f")) {
                 Vertex vertex;
@@ -95,14 +82,6 @@ std::vector<Vertex> readObjFile(const std::string &path) {
                         std::array<float, 2> texture = textures[std::atoi(index.data()) - 1];
                         vertex.texCoord[0] = texture[0];
                         vertex.texCoord[1] = texture[1];
-                    }
-
-                    getline(indexes, index, '/');
-                    if (!index.empty()) {
-                        std::array<float, 3> normal = normals[std::atoi(index.data()) - 1];
-                        vertex.normal[0] = normal[0];
-                        vertex.normal[1] = normal[1];
-                        vertex.normal[2] = normal[2];
                     }
                     
                     output.push_back(vertex);
