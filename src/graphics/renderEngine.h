@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "graphics/renderDevice.h"
+#include "graphics/renderHelpers.h"
 #include "graphics/renderResources.h"
 #include "graphics/renderColorPass.h"
 
@@ -12,6 +13,7 @@ class RenderEngine {
 private:
     RenderParametrs parametrs;
     RenderDevice device;
+    RenderHelpers helpers;
     RenderResources resources;
     RenderColorPass colorPass;
 

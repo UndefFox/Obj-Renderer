@@ -1,11 +1,11 @@
 #include "graphics/renderColorPass.h"
 
 #include "graphics/uboCamera.h"
-#include "fileController.h"
 
-RenderColorPass::RenderColorPass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources) :
+RenderColorPass::RenderColorPass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources, RenderHelpers &helpers) :
     renderDevice(device),
-    renderResources(resources)
+    renderResources(resources),
+    renderHelpers(helpers)
 {
     initializeRenderPass();
     initializeDescriptorSetLayout();
@@ -176,8 +176,8 @@ void RenderColorPass::initializatePipeline() {
 
     vkCreatePipelineLayout(renderDevice.logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout);
 
-    VkShaderModule vertModule = createShaderModule(FileController::readBinaryFile("vertex.spv"));
-    VkShaderModule fragModule = createShaderModule(FileController::readBinaryFile("fragment.spv"));;
+    VkShaderModule vertModule = renderHelpers.createShaderModule("./vertex.spv");
+    VkShaderModule fragModule = renderHelpers.createShaderModule("./fragment.spv");
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -323,20 +323,6 @@ void RenderColorPass::initializeFramebuffer(std::uint32_t width, std::uint32_t h
 
 void RenderColorPass::destroyFramebuffer() {
     vkDestroyFramebuffer(renderDevice.logicalDevice, framebuffer, nullptr);
-}
-
-
-VkShaderModule RenderColorPass::createShaderModule(const std::vector<std::uint8_t> &code) {
-    VkShaderModule output;
-
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const std::uint32_t*>(code.data());
-
-    vkCreateShaderModule(renderDevice.logicalDevice, &createInfo, nullptr, &output);
-
-    return output;
 }
 
 

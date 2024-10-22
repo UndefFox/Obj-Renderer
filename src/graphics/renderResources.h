@@ -1,6 +1,8 @@
 #pragma once
 
 #include "graphics/renderDevice.h"
+#include "graphics/renderHelpers.h"
+
 #include "graphics/vertex.h"
 #include "graphics/renderParametrs.h"
 
@@ -24,14 +26,15 @@ public:
     VkSampler defaultSampler;
 
 private:
-    const RenderDevice &renderDevice;
+    RenderDevice &renderDevice;
+    RenderHelpers &renderHelpers;
 
 public:
     RenderResources() = delete;
-    RenderResources(const RenderParametrs &parametrs, RenderDevice &device);
+    RenderResources(const RenderParametrs &parametrs, RenderDevice &device, RenderHelpers &helpers);
     ~RenderResources();
 
-    std::uint32_t findMemoryType(std::uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+   
 
 private:
     void initializeModelVertices(const Vertex *vertices, unsigned int count);

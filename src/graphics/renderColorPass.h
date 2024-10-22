@@ -3,6 +3,7 @@
 #include "graphics/renderDevice.h"
 #include "graphics/renderResources.h"
 #include "graphics/renderParametrs.h"
+#include "graphics/renderHelpers.h"
 
 #include <vector>
 
@@ -24,10 +25,11 @@ private:
 
     RenderDevice &renderDevice;
     RenderResources &renderResources;
+    RenderHelpers &renderHelpers;
 
 public:
     RenderColorPass() = delete;
-    RenderColorPass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources);
+    RenderColorPass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources, RenderHelpers &helpers);
     ~RenderColorPass();
     
     void initializeRenderPass();
@@ -46,8 +48,6 @@ public:
 
     void initializeFramebuffer(std::uint32_t width, std::uint32_t height);
     void destroyFramebuffer();
-
-    VkShaderModule createShaderModule(const std::vector<std::uint8_t> &code);
 
 
     void render(const RenderParametrs &parametrs);

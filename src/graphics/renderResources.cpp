@@ -10,8 +10,9 @@
 
 
 
-RenderResources::RenderResources(const RenderParametrs &parametrs, RenderDevice &device) :
-    renderDevice(device)
+RenderResources::RenderResources(const RenderParametrs &parametrs, RenderDevice &device, RenderHelpers &helpers) :
+    renderDevice(device),
+    renderHelpers(helpers)
 {
     initializeModelVertices(parametrs.modelVertices, parametrs.modelVerticesCount);
     initializeUBOCamera(parametrs.cameraPitch,
@@ -53,7 +54,7 @@ void RenderResources::initializeModelVertices(const Vertex *vertices, unsigned i
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &modelVerticesMemory);
 
@@ -88,7 +89,7 @@ void RenderResources::initializeUBOCamera(float pitch, float yaw, float distance
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &uboCameraMemory);
 
@@ -145,12 +146,11 @@ void RenderResources::initializeRenderImage(std::uint32_t width, std::uint32_t h
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &renderImageMemory);
 
     vkBindImageMemory(renderDevice.logicalDevice, renderImage, renderImageMemory, 0);
-
 
     VkImageViewCreateInfo imageViewInfo{};
     imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -197,138 +197,29 @@ void RenderResources::initializeBaseColorTexture(const std::uint8_t *image, std:
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &baseColorMemory);
 
     vkBindImageMemory(renderDevice.logicalDevice, baseColor, baseColorMemory, 0);
 
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = baseColor;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(renderDevice.universalBuffer, &beginInfo);
-
-    vkCmdPipelineBarrier(
-        renderDevice.universalBuffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier
+    renderHelpers.transitImageLayout(baseColor,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        0, VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
     );
 
-    vkEndCommandBuffer(renderDevice.universalBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &renderDevice.universalBuffer;
-
-    vkQueueSubmit(renderDevice.universalQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(renderDevice.universalQueue);
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
-    std::size_t memSize = sizeof(std::uint8_t) * width * height * 4;
-
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = memSize;
-    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    vkCreateBuffer(renderDevice.logicalDevice, &bufferInfo, nullptr, &stagingBuffer);
-
-    vkGetBufferMemoryRequirements(renderDevice.logicalDevice, stagingBuffer, &memRequirements);
-
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &stagingBufferMemory);
-
-    vkBindBufferMemory(renderDevice.logicalDevice, stagingBuffer, stagingBufferMemory, 0);
-
-    void* data;
-    vkMapMemory(renderDevice.logicalDevice, stagingBufferMemory, 0, memSize, 0, &data);
-        memcpy(data, image, memSize);
-    vkUnmapMemory(renderDevice.logicalDevice, stagingBufferMemory);
-
-    vkBeginCommandBuffer(renderDevice.universalBuffer, &beginInfo);
-
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {
-        width,
-        height,
-        1
-    };
-
-    
-
-    vkCmdCopyBufferToImage(
-        renderDevice.universalBuffer,
-        stagingBuffer,
-        baseColor,
+    renderHelpers.writeToImage(baseColor, 
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1,
-        &region
+        image,
+        width, height
     );
 
-    vkEndCommandBuffer(renderDevice.universalBuffer);
-
-    vkQueueSubmit(renderDevice.universalQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(renderDevice.universalQueue);
-
-    vkDestroyBuffer(renderDevice.logicalDevice, stagingBuffer, nullptr);
-    vkFreeMemory(renderDevice.logicalDevice, stagingBufferMemory, nullptr);
-
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkBeginCommandBuffer(renderDevice.universalBuffer, &beginInfo);
-
-    vkCmdPipelineBarrier(
-        renderDevice.universalBuffer,
-        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier
+    renderHelpers.transitImageLayout(baseColor,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
     );
-
-    vkEndCommandBuffer(renderDevice.universalBuffer);
-
-    vkQueueSubmit(renderDevice.universalQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(renderDevice.universalQueue);
 
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -374,19 +265,4 @@ void RenderResources::initializeDefaultSempler() {
 
 void RenderResources::destroyDefaultSampler() {
     vkDestroySampler(renderDevice.logicalDevice, defaultSampler, nullptr);
-}
-
-
-
-std::uint32_t RenderResources::findMemoryType(std::uint32_t typeFilter, VkMemoryPropertyFlags properties) const {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(renderDevice.physicalDevice, &memProperties);
-
-    for (std::uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            return i;
-        }
-    }
-
-    return 0;
 }
