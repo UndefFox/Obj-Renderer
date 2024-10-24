@@ -11,18 +11,20 @@
 #include "graphics/uboCamera.h"
 
 RenderEngine::RenderEngine(const RenderParametrs &params) : 
-    parametrs(params),
-    device(parametrs),
+    device(params),
     helpers(device),
-    resources(parametrs, device, helpers),
-    colorPass(parametrs, device, resources, helpers)
+    resources(params, device, helpers),
+
+    colorPass(params, device, resources, helpers),
+    linePass(params, device, resources, helpers)
 {}
 
 RenderEngine::~RenderEngine() { }
 
 
 void RenderEngine::render() {
-    colorPass.render(parametrs);
+    colorPass.render();
+    linePass.render();
 }
 
 std::vector<std::uint8_t> RenderEngine::getImage() {
@@ -32,11 +34,11 @@ std::vector<std::uint8_t> RenderEngine::getImage() {
         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
     );
     
-    std::vector<std::uint8_t> pixels(parametrs.imageWidth * parametrs.imageHeight * 4);
+    std::vector<std::uint8_t> pixels(resources.imageWidth * resources.imageHeight * 4);
     helpers.getImage(resources.renderImage, 
         VK_IMAGE_LAYOUT_GENERAL,
         pixels.data(),
-        parametrs.imageWidth, parametrs.imageHeight
+        resources.imageWidth, resources.imageHeight
     );
 
     return pixels;

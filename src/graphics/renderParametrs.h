@@ -9,9 +9,13 @@ public:
 
     float backgroundColor[4];
 
-    unsigned int baseColorTextureHeight;
-    unsigned int baseColorTextureWidth;
+    int baseColorTextureHeight;
+    int baseColorTextureWidth;
     std::uint8_t *baseColorTexture;
+
+    int fontColorTextureHeight;
+    int fontColorTextureWidth;
+    std::uint8_t *fontColorTexture;
 
     float cameraHeight;
     float cameraPitch;

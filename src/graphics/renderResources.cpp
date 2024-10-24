@@ -5,6 +5,8 @@
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <array>
+#include <cmath>
 
 #include "graphics/uboCamera.h"
 
@@ -15,6 +17,11 @@ RenderResources::RenderResources(const RenderParametrs &parametrs, RenderDevice 
     renderHelpers(helpers)
 {
     initializeModelVertices(parametrs.modelVertices, parametrs.modelVerticesCount);
+    initializeLineVertices(parametrs.modelVertices, parametrs.modelVerticesCount,
+        parametrs.cameraPitch,
+        parametrs.cameraYaw,
+        parametrs.cameraDistance,
+        parametrs.cameraHeight);
     initializeUBOCamera(parametrs.cameraPitch,
         parametrs.cameraYaw,
         parametrs.cameraDistance,
@@ -25,20 +32,27 @@ RenderResources::RenderResources(const RenderParametrs &parametrs, RenderDevice 
     initializeBaseColorTexture(parametrs.baseColorTexture,
         parametrs.baseColorTextureWidth,
         parametrs.baseColorTextureHeight);
+    initializeFontColorTexture(parametrs.fontColorTexture,
+        parametrs.fontColorTextureWidth,
+        parametrs.fontColorTextureHeight
+    );
     initializeDefaultSempler();
 }
 
 RenderResources::~RenderResources() {
     destroyDefaultSampler();
+    destroyFontColorTexture();
     destroyBaseColorTexture();
     destroyRenderImage();
     destroyUBOCamera();
+    destroyLineVertices();
     destroyModelVertices();
 }
 
 
 void RenderResources::initializeModelVertices(const Vertex *vertices, unsigned int count) {
     std::size_t memSize = sizeof(Vertex) * count;
+    modelVerticesCount = count;
 
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -70,6 +84,98 @@ void RenderResources::destroyModelVertices() {
     vkDestroyBuffer(renderDevice.logicalDevice, modelVertices, nullptr);
     vkFreeMemory(renderDevice.logicalDevice, modelVerticesMemory, nullptr);
 }
+
+
+void RenderResources::initializeLineVertices(const Vertex *vertices, unsigned int count, float pitch, float yaw, float distance, float height) {
+    glm::vec3 bottomBounding(0, 0, 0);
+    glm::vec3 topBounding(0, 0, 0);
+
+    for (int i = 0; i < count; i++) {
+        if (vertices[i].pos.x < bottomBounding.x) {
+            bottomBounding.x = vertices[i].pos.x;
+        }
+        if (vertices[i].pos.y < bottomBounding.y) {
+            bottomBounding.y = vertices[i].pos.y;
+        }
+        if (vertices[i].pos.z < bottomBounding.z) {
+            bottomBounding.z = vertices[i].pos.z;
+        }
+
+        if (vertices[i].pos.x > topBounding.x) {
+            topBounding.x = vertices[i].pos.x;
+        }
+        if (vertices[i].pos.y > topBounding.y) {
+            topBounding.y = vertices[i].pos.y;
+        }
+        if (vertices[i].pos.z > topBounding.z) {
+            topBounding.z = vertices[i].pos.z;
+        }
+    }
+
+    glm::vec4 cameraPosition = glm::vec4 (0, 0, height, 0) +
+        glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f)) *
+        glm::rotate(glm::mat4(1.0f), glm::radians(-pitch), glm::vec3(0.0f, 1.0f, 0.0f)) *
+        glm::vec4(distance, 0.0f, 0.0f, 0.0f);
+
+    if (cameraPosition.x >= 0) {
+        float temp = topBounding.x;
+        topBounding.x = bottomBounding.x;
+        bottomBounding.x = temp;
+    }
+    if (cameraPosition.y >= 0) {
+        float temp = topBounding.y;
+        topBounding.y = bottomBounding.y;
+        bottomBounding.y = temp;
+    }
+    if (cameraPosition.z < 0) {
+        float temp = topBounding.z;
+        topBounding.z = bottomBounding.z;
+        bottomBounding.z = temp;
+    }
+
+    std::array<Vertex, 6> points = {
+        Vertex {.pos = {bottomBounding.x, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, bottomBounding.z}, .texCoord = {0, 0}},
+        Vertex {.pos = {topBounding.x, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, bottomBounding.z}, .texCoord = {0, 0}},
+        Vertex {.pos = {bottomBounding.x + (std::signbit(bottomBounding.x) ? -distance : distance) * 0.02, bottomBounding.y, bottomBounding.z}, .texCoord = {0, 0}},
+        Vertex {.pos = {bottomBounding.x + (std::signbit(bottomBounding.x) ? -distance : distance) * 0.02, topBounding.y, bottomBounding.z}, .texCoord = {0, 0}},
+        Vertex {.pos = {topBounding.x + (std::signbit(bottomBounding.x) ? distance : -distance) * 0.02, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, bottomBounding.z}, .texCoord = {0, 0}},
+        Vertex {.pos = {topBounding.x + (std::signbit(bottomBounding.x) ? distance : -distance) * 0.02, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, topBounding.z}, .texCoord = {0, 0}}
+    };
+
+    std::size_t memSize = sizeof(Vertex) * points.size();
+    lineVerticesCount = points.size();
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = memSize;
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    vkCreateBuffer(renderDevice.logicalDevice, &bufferInfo, nullptr, &lineVertices);
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(renderDevice.logicalDevice, lineVertices, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &lineVerticesMemory);
+
+    vkBindBufferMemory(renderDevice.logicalDevice, lineVertices, lineVerticesMemory, 0);
+
+    void* data;
+    vkMapMemory(renderDevice.logicalDevice, lineVerticesMemory, 0, memSize, 0, &data);
+        std::memcpy(data, points.data(), memSize);
+    vkUnmapMemory(renderDevice.logicalDevice, lineVerticesMemory);
+}
+
+void RenderResources::destroyLineVertices() {
+    vkDestroyBuffer(renderDevice.logicalDevice, lineVertices, nullptr);
+    vkFreeMemory(renderDevice.logicalDevice, lineVerticesMemory, nullptr);
+}
+
 
 
 void RenderResources::initializeUBOCamera(float pitch, float yaw, float distance, float height, float fov, float aspectRatio) {
@@ -123,6 +229,11 @@ void RenderResources::destroyUBOCamera() {
 
 
 void RenderResources::initializeRenderImage(std::uint32_t width, std::uint32_t height) {
+    imageHeight = height;
+    imageWidth = width;
+    backgroundColor = {0, 0, 0, 0};
+
+
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -239,6 +350,75 @@ void RenderResources::destroyBaseColorTexture() {
     vkDestroyImageView(renderDevice.logicalDevice, baseColorView, nullptr);
     vkFreeMemory(renderDevice.logicalDevice, baseColorMemory, nullptr);
     vkDestroyImage(renderDevice.logicalDevice, baseColor, nullptr);
+}
+
+
+void RenderResources::initializeFontColorTexture(const std::uint8_t *image, std::uint32_t width, std::uint32_t height) {
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    imageInfo.tiling = VK_IMAGE_TILING_LINEAR;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    vkCreateImage(renderDevice.logicalDevice, &imageInfo, nullptr, &fontColor);
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(renderDevice.logicalDevice, fontColor, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &fontColorMemory);
+
+    vkBindImageMemory(renderDevice.logicalDevice, fontColor, fontColorMemory, 0);
+
+    renderHelpers.transitImageLayout(fontColor,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        0, VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+    );
+
+    renderHelpers.writeToImage(fontColor, 
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        image,
+        width, height
+    );
+
+    renderHelpers.transitImageLayout(fontColor,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+    );
+
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = fontColor;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    vkCreateImageView(renderDevice.logicalDevice, &viewInfo, nullptr, &fontColorView);
+}
+
+void RenderResources::destroyFontColorTexture() {
+    vkDestroyImageView(renderDevice.logicalDevice, fontColorView, nullptr);
+    vkFreeMemory(renderDevice.logicalDevice, fontColorMemory, nullptr);
+    vkDestroyImage(renderDevice.logicalDevice, fontColor, nullptr);
 }
 
 

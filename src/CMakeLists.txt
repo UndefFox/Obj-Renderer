@@ -9,7 +9,7 @@ add_executable(obj-renderer
     graphics/renderResources.cpp graphics/renderResources.h
     graphics/renderColorPass.cpp graphics/renderColorPass.h
     graphics/renderHelpers.cpp graphics/renderHelpers.h
-
+    graphics/renderLinePass.cpp graphics/renderLinePass.h
     graphics/vertex.h
     graphics/uboCamera.h
     graphics/renderParametrs.h

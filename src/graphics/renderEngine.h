@@ -6,16 +6,18 @@
 #include "graphics/renderHelpers.h"
 #include "graphics/renderResources.h"
 #include "graphics/renderColorPass.h"
+#include "graphics/renderLinePass.h"
 
 #include "graphics/renderParametrs.h"
 
 class RenderEngine {
 private:
-    RenderParametrs parametrs;
     RenderDevice device;
     RenderHelpers helpers;
     RenderResources resources;
+
     RenderColorPass colorPass;
+    RenderLinePass linePass;
 
 public:
     RenderEngine(const RenderParametrs &params);

@@ -9,8 +9,17 @@
 
 class RenderResources {
 public:
+    std::uint32_t imageHeight;
+    std::uint32_t imageWidth;
+    VkClearColorValue backgroundColor;
+
     VkBuffer modelVertices;
     VkDeviceMemory modelVerticesMemory;
+    std::uint32_t modelVerticesCount;
+
+    VkBuffer lineVertices;
+    VkDeviceMemory lineVerticesMemory;
+    std::uint32_t lineVerticesCount;
 
     VkBuffer uboCamera;
     VkDeviceMemory uboCameraMemory;
@@ -22,6 +31,10 @@ public:
     VkImage baseColor;
     VkDeviceMemory baseColorMemory;
     VkImageView baseColorView;
+
+    VkImage fontColor;
+    VkDeviceMemory fontColorMemory;
+    VkImageView fontColorView;
 
     VkSampler defaultSampler;
 
@@ -40,6 +53,9 @@ private:
     void initializeModelVertices(const Vertex *vertices, unsigned int count);
     void destroyModelVertices();
 
+    void initializeLineVertices(const Vertex *vertices, unsigned int count, float pitch, float yaw, float distance, float height);
+    void destroyLineVertices();
+
     void initializeUBOCamera(float pitch, float yaw, float distance, float height, float fov, float aspectRatio);
     void destroyUBOCamera();
 
@@ -48,6 +64,9 @@ private:
 
     void initializeBaseColorTexture(const std::uint8_t *image, std::uint32_t width, std::uint32_t height);
     void destroyBaseColorTexture();
+
+    void initializeFontColorTexture(const std::uint8_t *image, std::uint32_t width, std::uint32_t height);
+    void destroyFontColorTexture();
 
     void initializeDefaultSempler();
     void destroyDefaultSampler();

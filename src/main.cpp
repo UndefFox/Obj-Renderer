@@ -10,30 +10,23 @@
 #include "stb_image.hpp"
 
 int main() {
+    RenderParametrs params{};
+    params.imageHeight = 512;
+    params.imageWidth = 512;
+
+    params.cameraHeight = -0.1f;
+    params.cameraPitch = 30.0f;
+    params.cameraYaw = 45.0f;
+    params.cameraDistance = 2.0f;
+    params.cameraFOV = 90.0f;
+
+    params.baseColorTexture = stbi_load("./box_example.png", &params.baseColorTextureWidth, &params.baseColorTextureHeight, nullptr, STBI_rgb_alpha);
+
+    params.fontColorTexture = stbi_load("./box_example.png", &params.fontColorTextureWidth, &params.fontColorTextureHeight, nullptr, STBI_rgb_alpha);
+
     std::vector<Vertex> vertices = FileController::readObjFile("./box.obj");
-
-    int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("./box_example.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    std::vector<std::uint8_t> pixelsVec;
-    pixelsVec.assign(reinterpret_cast<std::uint8_t*>(pixels), reinterpret_cast<std::uint8_t*>(pixels) + texWidth * texHeight * 4);
-
-    RenderParametrs params {
-        .imageHeight = 512,
-        .imageWidth = 512,
-
-        .baseColorTextureHeight = texHeight,
-        .baseColorTextureWidth = texWidth,
-        .baseColorTexture = pixelsVec.data(),
-
-        .cameraHeight = -0.2f,
-        .cameraPitch = 30.0f,
-        .cameraYaw = 45.0f,
-        .cameraDistance = 2.0f,
-        .cameraFOV = 90.0f,
-
-        .modelVertices = vertices.data(),
-        .modelVerticesCount = vertices.size()
-    };
+    params.modelVertices = vertices.data();
+    params.modelVerticesCount = vertices.size();
     
     RenderEngine engine(params);
 

@@ -5,10 +5,7 @@
 #include "graphics/renderParametrs.h"
 #include "graphics/renderHelpers.h"
 
-#include <vector>
-
-class RenderColorPass {
-public:
+class RenderLinePass {
 
 private:
     VkRenderPass renderPass;
@@ -22,16 +19,15 @@ private:
 
     VkFramebuffer framebuffer;
 
-
     RenderDevice &renderDevice;
-    RenderResources &renderResources;
     RenderHelpers &renderHelpers;
+    RenderResources &renderResources;
 
 public:
-    RenderColorPass() = delete;
-    RenderColorPass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources, RenderHelpers &helpers);
-    ~RenderColorPass();
-    
+    RenderLinePass() = delete;
+    RenderLinePass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources, RenderHelpers &helpers);
+    ~RenderLinePass();
+
     void initializeRenderPass();
     void destroyRenderPass();
 

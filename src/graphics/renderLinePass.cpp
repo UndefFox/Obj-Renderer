@@ -1,13 +1,13 @@
-#include "graphics/renderColorPass.h"
+#include "graphics/renderLinePass.h"
 
 #include "graphics/uboCamera.h"
 
 #include <array>
 
-RenderColorPass::RenderColorPass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources, RenderHelpers &helpers) :
+RenderLinePass::RenderLinePass(const RenderParametrs &parametrs, RenderDevice &device, RenderResources &resources, RenderHelpers &helpers) :
     renderDevice(device),
-    renderResources(resources),
-    renderHelpers(helpers)
+    renderHelpers(helpers),
+    renderResources(resources)
 {
     initializeRenderPass();
     initializeDescriptorSetLayout();
@@ -19,7 +19,7 @@ RenderColorPass::RenderColorPass(const RenderParametrs &parametrs, RenderDevice 
         parametrs.imageHeight);
 }
 
-RenderColorPass::~RenderColorPass() {
+RenderLinePass::~RenderLinePass() {
     destroyFramebuffer();
     destroyPipeline();
     destroyDescriptorPool();
@@ -27,15 +27,16 @@ RenderColorPass::~RenderColorPass() {
     destroyRenderPass();
 }
 
-void RenderColorPass::initializeRenderPass() {
+
+void RenderLinePass::initializeRenderPass() {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = VK_FORMAT_R8G8B8A8_SRGB;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference colorAttachmentRef{};
@@ -59,12 +60,13 @@ void RenderColorPass::initializeRenderPass() {
     vkCreateRenderPass(renderDevice.logicalDevice, &renderPassInfo, nullptr, &renderPass);
 }
 
-void RenderColorPass::destroyRenderPass() {
+void RenderLinePass::destroyRenderPass() {
     vkDestroyRenderPass(renderDevice.logicalDevice, renderPass, nullptr);
     renderPass = nullptr;
 }
 
-void RenderColorPass::initializeDescriptorSetLayout() {
+
+void RenderLinePass::initializeDescriptorSetLayout() {
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.binding = 0;
     uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -89,13 +91,13 @@ void RenderColorPass::initializeDescriptorSetLayout() {
     vkCreateDescriptorSetLayout(renderDevice.logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout);
 }
 
-void RenderColorPass::destroyDescriptorSetLayout() {
+void RenderLinePass::destroyDescriptorSetLayout() {
     vkDestroyDescriptorSetLayout(renderDevice.logicalDevice, descriptorSetLayout, nullptr);
     descriptorSetLayout = nullptr;
 }
 
 
-void RenderColorPass::initializeDescriptorPool() {
+void RenderLinePass::initializeDescriptorPool() {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = 1;
@@ -111,12 +113,12 @@ void RenderColorPass::initializeDescriptorPool() {
     vkCreateDescriptorPool(renderDevice.logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool);
 }
 
-void RenderColorPass::destroyDescriptorPool() {
+void RenderLinePass::destroyDescriptorPool() {
     vkDestroyDescriptorPool(renderDevice.logicalDevice, descriptorPool, nullptr);
 }
 
 
-void RenderColorPass::initializeDescriptorSet() {
+void RenderLinePass::initializeDescriptorSet() {
     VkDescriptorSetAllocateInfo descriptorAllocInfo{};
     descriptorAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptorAllocInfo.descriptorPool = descriptorPool;
@@ -132,7 +134,7 @@ void RenderColorPass::initializeDescriptorSet() {
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = renderResources.baseColorView;
+    imageInfo.imageView = renderResources.fontColorView;
     imageInfo.sampler = renderResources.defaultSampler;
 
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -157,7 +159,7 @@ void RenderColorPass::initializeDescriptorSet() {
 }
 
 
-void RenderColorPass::initializatePipeline(std::uint32_t width, std::uint32_t height) {
+void RenderLinePass::initializatePipeline(std::uint32_t width, std::uint32_t height) {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
@@ -166,8 +168,8 @@ void RenderColorPass::initializatePipeline(std::uint32_t width, std::uint32_t he
 
     vkCreatePipelineLayout(renderDevice.logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout);
 
-    VkShaderModule vertModule = renderHelpers.createShaderModule("./shaders/triangle/vertex.spv");
-    VkShaderModule fragModule = renderHelpers.createShaderModule("./shaders/triangle/fragment.spv");
+    VkShaderModule vertModule = renderHelpers.createShaderModule("./shaders/line/vertex.spv");
+    VkShaderModule fragModule = renderHelpers.createShaderModule("./shaders/line/fragment.spv");
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -209,7 +211,7 @@ void RenderColorPass::initializatePipeline(std::uint32_t width, std::uint32_t he
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport viewport{};
@@ -234,7 +236,7 @@ void RenderColorPass::initializatePipeline(std::uint32_t width, std::uint32_t he
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
+    rasterizer.lineWidth = 2.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
@@ -259,6 +261,7 @@ void RenderColorPass::initializatePipeline(std::uint32_t width, std::uint32_t he
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -280,13 +283,13 @@ void RenderColorPass::initializatePipeline(std::uint32_t width, std::uint32_t he
     vkDestroyShaderModule(renderDevice.logicalDevice, fragModule, nullptr); 
 }
 
-void RenderColorPass::destroyPipeline() {
+void RenderLinePass::destroyPipeline() {
     vkDestroyPipeline(renderDevice.logicalDevice, pipeline, nullptr);
     vkDestroyPipelineLayout(renderDevice.logicalDevice, pipelineLayout, nullptr);
 }
 
 
-void RenderColorPass::initializeFramebuffer(std::uint32_t width, std::uint32_t height) {
+void RenderLinePass::initializeFramebuffer(std::uint32_t width, std::uint32_t height) {
     std::array<VkImageView, 1> freameBufferAttachments = {
         renderResources.renderImageView
     };
@@ -303,12 +306,12 @@ void RenderColorPass::initializeFramebuffer(std::uint32_t width, std::uint32_t h
     vkCreateFramebuffer(renderDevice.logicalDevice, &framebufferInfo, nullptr, &framebuffer);
 }
 
-void RenderColorPass::destroyFramebuffer() {
+void RenderLinePass::destroyFramebuffer() {
     vkDestroyFramebuffer(renderDevice.logicalDevice, framebuffer, nullptr);
 }
 
 
-void RenderColorPass::render() {
+void RenderLinePass::render() {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -321,24 +324,19 @@ void RenderColorPass::render() {
     renderPassInfo.framebuffer = framebuffer;
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = {.width = renderResources.imageWidth, .height = renderResources.imageHeight};
-
-    
-    std::array<VkClearValue, 1> clearValues{};
-    clearValues[0].color = renderResources.backgroundColor;
-    renderPassInfo.clearValueCount = clearValues.size();
-    renderPassInfo.pClearValues = clearValues.data();
+    renderPassInfo.clearValueCount = 0;
 
     vkCmdBeginRenderPass(renderDevice.universalBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(renderDevice.universalBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
-    VkBuffer vertexBuffers[] = {renderResources.modelVertices};
+    VkBuffer vertexBuffers[] = {renderResources.lineVertices};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(renderDevice.universalBuffer, 0, 1, vertexBuffers, offsets);
 
     vkCmdBindDescriptorSets(renderDevice.universalBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
-    vkCmdDraw(renderDevice.universalBuffer, renderResources.modelVerticesCount, 1, 0, 0);
+    vkCmdDraw(renderDevice.universalBuffer, renderResources.lineVerticesCount, 1, 0, 0);
 
     vkCmdEndRenderPass(renderDevice.universalBuffer);
 
@@ -358,4 +356,3 @@ void RenderColorPass::render() {
 
     vkQueueWaitIdle(renderDevice.universalQueue);
 }
-
