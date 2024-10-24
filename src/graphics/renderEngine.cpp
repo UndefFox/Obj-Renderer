@@ -16,7 +16,8 @@ RenderEngine::RenderEngine(const RenderParametrs &params) :
     resources(params, device, helpers),
 
     colorPass(params, device, resources, helpers),
-    linePass(params, device, resources, helpers)
+    linePass(params, device, resources, helpers),
+    textPass(params, device, resources, helpers)
 {}
 
 RenderEngine::~RenderEngine() { }
@@ -25,6 +26,7 @@ RenderEngine::~RenderEngine() { }
 void RenderEngine::render() {
     colorPass.render();
     linePass.render();
+    textPass.render();
 }
 
 std::vector<std::uint8_t> RenderEngine::getImage() {

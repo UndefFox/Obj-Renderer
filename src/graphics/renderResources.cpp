@@ -2,10 +2,9 @@
 
 #include <cstring>
 
-#define GLM_FORCE_RADIANS
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+
 #include <array>
+#include <vector>
 #include <cmath>
 
 #include "graphics/uboCamera.h"
@@ -19,6 +18,10 @@ RenderResources::RenderResources(const RenderParametrs &parametrs, RenderDevice 
     initializeModelVertices(parametrs.modelVertices, parametrs.modelVerticesCount);
     initializeLineVertices(parametrs.modelVertices, parametrs.modelVerticesCount,
         parametrs.cameraPitch,
+        parametrs.cameraYaw,
+        parametrs.cameraDistance,
+        parametrs.cameraHeight);
+    initializeTextVertices(parametrs.cameraPitch,
         parametrs.cameraYaw,
         parametrs.cameraDistance,
         parametrs.cameraHeight);
@@ -45,6 +48,7 @@ RenderResources::~RenderResources() {
     destroyBaseColorTexture();
     destroyRenderImage();
     destroyUBOCamera();
+    destroyTextVertices();
     destroyLineVertices();
     destroyModelVertices();
 }
@@ -87,8 +91,8 @@ void RenderResources::destroyModelVertices() {
 
 
 void RenderResources::initializeLineVertices(const Vertex *vertices, unsigned int count, float pitch, float yaw, float distance, float height) {
-    glm::vec3 bottomBounding(0, 0, 0);
-    glm::vec3 topBounding(0, 0, 0);
+    bottomBounding = glm::vec3(0, 0, 0);
+    topBounding = glm::vec3(0, 0, 0);
 
     for (int i = 0; i < count; i++) {
         if (vertices[i].pos.x < bottomBounding.x) {
@@ -174,6 +178,102 @@ void RenderResources::initializeLineVertices(const Vertex *vertices, unsigned in
 void RenderResources::destroyLineVertices() {
     vkDestroyBuffer(renderDevice.logicalDevice, lineVertices, nullptr);
     vkFreeMemory(renderDevice.logicalDevice, lineVerticesMemory, nullptr);
+}
+
+
+
+void RenderResources::initializeTextVertices(float pitch, float yaw, float distance, float height) {
+    std::vector<Vertex> vertices;
+
+    glm::vec3 cameraPosition(0, 0, height);
+    glm::vec3 loockVector = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f)) *
+                            glm::rotate(glm::mat4(1.0f), glm::radians(-pitch), glm::vec3(0.0f, 1.0f, 0.0f)) *
+                            glm::vec4(distance, 0.0f, 0.0f, 0.0f);
+
+    glm::mat4 view = glm::lookAt(loockVector + cameraPosition, cameraPosition - loockVector, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 20.0f);
+    proj[1][1] *= -1;
+    glm::mat4 camera = proj * view;
+
+    glm::vec3 objCenter = (bottomBounding + topBounding) / 2.0f;
+
+    glm::vec3 left{bottomBounding.x, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, bottomBounding.z};
+    glm::vec3 right{topBounding.x, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, bottomBounding.z};
+
+    glm::vec3 lineCenter = (left + right) / 2.0f;
+
+    glm::vec3 dimensions = glm::abs(bottomBounding - topBounding);
+
+    
+    bool reverse = (camera * glm::vec4(lineCenter - objCenter, 0)).x < 0;
+
+    glm::vec3 textVec = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f)) *
+                        glm::vec4(0.0f, reverse ? -1.0f : 1.0f, 0.0f, 0.0f);
+
+    std::vector<Vertex> temp = renderHelpers.getTextGeometry(std::to_string((int)(dimensions.y * 1000)) + "mm", lineCenter, textVec, glm::rotate(glm::mat4(1.0f), glm::radians(reverse ? pitch : -pitch), textVec) * glm::vec4{0, 0, -1, 0}, distance * 0.06f, reverse, (camera * glm::vec4(lineCenter - objCenter, 0)).y < 0);
+
+    vertices.insert(vertices.end(), temp.begin(), temp.end());
+
+    left = {bottomBounding.x + (std::signbit(bottomBounding.x) ? -distance : distance) * 0.02, bottomBounding.y, bottomBounding.z};
+    right = {bottomBounding.x + (std::signbit(bottomBounding.x) ? -distance : distance) * 0.02, topBounding.y, bottomBounding.z};
+
+    lineCenter = (left + right) / 2.0f;
+
+    reverse = (camera * glm::vec4(lineCenter - objCenter, 0)).x < 0;
+
+    textVec = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f)) *
+              glm::vec4(0.0f, reverse ? -1.0f : 1.0f, 0.0f, 0.0f);
+
+    temp = renderHelpers.getTextGeometry(std::to_string((int)(dimensions.x * 1000)) + "mm", lineCenter, textVec, glm::rotate(glm::mat4(1.0f), glm::radians(reverse ? pitch : -pitch), textVec) * glm::vec4{0, 0, -1, 0}, distance * 0.06f, reverse, (camera * glm::vec4(lineCenter - objCenter, 0)).y < 0);
+
+    vertices.insert(vertices.end(), temp.begin(), temp.end());
+
+    left = {topBounding.x + (std::signbit(bottomBounding.x) ? distance : -distance) * 0.02, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, bottomBounding.z};
+    right = {topBounding.x + (std::signbit(bottomBounding.x) ? distance : -distance) * 0.02, bottomBounding.y + (std::signbit(bottomBounding.y) ? -distance : distance) * 0.02, topBounding.z};
+
+    lineCenter = (left + right) / 2.0f;
+
+    reverse = (camera * glm::vec4(lineCenter - objCenter, 0)).x < 0;
+
+    textVec = glm::rotate(glm::mat4(1.0f), glm::radians(yaw), glm::vec3(0.0f, 0.0f, 1.0f)) *
+              glm::vec4(0.0f, reverse ? -1.0f : 1.0f, 0.0f, 0.0f);
+
+    temp = renderHelpers.getTextGeometry(std::to_string((int)(dimensions.z * 1000)) + "mm", lineCenter, textVec, glm::rotate(glm::mat4(1.0f), glm::radians(reverse ? pitch : -pitch), textVec) * glm::vec4{0, 0, -1, 0}, distance * 0.06f, reverse, (camera * glm::vec4(lineCenter - objCenter, 0)).y < 0);
+
+    vertices.insert(vertices.end(), temp.begin(), temp.end());
+
+    std::size_t memSize = sizeof(Vertex) * vertices.size();
+    textVerticesCount = vertices.size();
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = memSize;
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    vkCreateBuffer(renderDevice.logicalDevice, &bufferInfo, nullptr, &textVertices);
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(renderDevice.logicalDevice, textVertices, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = renderHelpers.findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    vkAllocateMemory(renderDevice.logicalDevice, &allocInfo, nullptr, &textVerticesMemory);
+
+    vkBindBufferMemory(renderDevice.logicalDevice, textVertices, textVerticesMemory, 0);
+
+    void* data;
+    vkMapMemory(renderDevice.logicalDevice, textVerticesMemory, 0, memSize, 0, &data);
+        std::memcpy(data, vertices.data(), memSize);
+    vkUnmapMemory(renderDevice.logicalDevice, textVerticesMemory);
+}
+
+void RenderResources::destroyTextVertices() {
+    vkDestroyBuffer(renderDevice.logicalDevice, textVertices, nullptr);
+    vkFreeMemory(renderDevice.logicalDevice, textVerticesMemory, nullptr);
 }
 
 

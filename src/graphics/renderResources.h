@@ -6,6 +6,10 @@
 #include "graphics/vertex.h"
 #include "graphics/renderParametrs.h"
 
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 
 class RenderResources {
 public:
@@ -20,6 +24,12 @@ public:
     VkBuffer lineVertices;
     VkDeviceMemory lineVerticesMemory;
     std::uint32_t lineVerticesCount;
+    glm::vec3 bottomBounding;
+    glm::vec3 topBounding;
+
+    VkBuffer textVertices;
+    VkDeviceMemory textVerticesMemory;
+    std::uint32_t textVerticesCount;
 
     VkBuffer uboCamera;
     VkDeviceMemory uboCameraMemory;
@@ -55,6 +65,9 @@ private:
 
     void initializeLineVertices(const Vertex *vertices, unsigned int count, float pitch, float yaw, float distance, float height);
     void destroyLineVertices();
+
+    void initializeTextVertices(float pitch, float yaw, float distance, float height);
+    void destroyTextVertices();
 
     void initializeUBOCamera(float pitch, float yaw, float distance, float height, float fov, float aspectRatio);
     void destroyUBOCamera();

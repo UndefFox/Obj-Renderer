@@ -8,6 +8,7 @@ add_executable(obj-renderer
     graphics/renderDevice.cpp graphics/renderDevice.h
     graphics/renderResources.cpp graphics/renderResources.h
     graphics/renderColorPass.cpp graphics/renderColorPass.h
+    graphics/renderTextPass.cpp graphics/renderTextPass.h
     graphics/renderHelpers.cpp graphics/renderHelpers.h
     graphics/renderLinePass.cpp graphics/renderLinePass.h
     graphics/vertex.h

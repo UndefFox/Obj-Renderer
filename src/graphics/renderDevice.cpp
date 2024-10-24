@@ -122,6 +122,7 @@ void RenderDevice::initializeLogicalDevice() {
     deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
     deviceCreateInfo.queueCreateInfoCount = 1;
     deviceCreateInfo.enabledExtensionCount = 0;
+
     deviceCreateInfo.enabledLayerCount = 0;
 
     vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice);

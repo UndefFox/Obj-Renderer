@@ -7,6 +7,7 @@
 #include "graphics/renderResources.h"
 #include "graphics/renderColorPass.h"
 #include "graphics/renderLinePass.h"
+#include "graphics/renderTextPass.h"
 
 #include "graphics/renderParametrs.h"
 
@@ -15,9 +16,11 @@ private:
     RenderDevice device;
     RenderHelpers helpers;
     RenderResources resources;
+    
 
     RenderColorPass colorPass;
     RenderLinePass linePass;
+    RenderTextPass textPass;
 
 public:
     RenderEngine(const RenderParametrs &params);

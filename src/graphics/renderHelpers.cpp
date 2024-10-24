@@ -3,7 +3,7 @@
 #include "fileController.h"
 
 #include <cstring>
-
+#include <array>
 
 RenderHelpers::RenderHelpers(RenderDevice &device) :
     renderDevice(device)
@@ -240,4 +240,86 @@ void RenderHelpers::getImage(VkImage &image, VkImageLayout imageLayout, std::uin
 
     vkDestroyBuffer(renderDevice.logicalDevice, stagingBuffer, nullptr);
     vkFreeMemory(renderDevice.logicalDevice, stagingBufferMemory, nullptr);
+}
+
+
+std::vector<Vertex> RenderHelpers::getTextGeometry(std::string text, glm::vec3 topCorner, glm::vec3 rightDirection, glm::vec3 downDirection, float scale, bool mirror, bool bottomAligment) {
+    std::vector<Vertex> output;
+
+    rightDirection = glm::normalize(rightDirection) * scale;
+    downDirection = glm::normalize(downDirection) * scale;
+
+    if (mirror) {
+        text = std::string(text.rbegin(), text.rend());
+    }
+
+    std::array<Vertex, 6> vertices;
+
+    if (mirror && !bottomAligment) {
+        vertices = {
+            Vertex{.pos = downDirection                 , .texCoord = glm::vec2{0.25f, 0.25f}},  //left bottom
+            Vertex{.pos = rightDirection                , .texCoord = glm::vec2{0.00f, 0.00f}},  //right top
+            Vertex{.pos = rightDirection + downDirection, .texCoord = glm::vec2{0.00f, 0.25f}},  //right bottom
+            Vertex{.pos = downDirection                 , .texCoord = glm::vec2{0.25f, 0.25f}},  //left bottom
+            Vertex{.pos = {0, 0, 0}                     , .texCoord = glm::vec2{0.25f, 0.00f}},  //left top
+            Vertex{.pos = rightDirection                , .texCoord = glm::vec2{0.00f, 0.00f}}   //right top
+        };
+    }
+    else if (!mirror && !bottomAligment) {
+        vertices = {
+            Vertex{.pos = rightDirection + downDirection, .texCoord = glm::vec2{0.25f, 0.25f}},  //right bottom
+            Vertex{.pos = rightDirection                , .texCoord = glm::vec2{0.25f, 0.00f}},  //right top
+            Vertex{.pos = downDirection                 , .texCoord = glm::vec2{0.00f, 0.25f}},  //left bottom
+            Vertex{.pos = rightDirection                , .texCoord = glm::vec2{0.25f, 0.00f}},  //right top
+            Vertex{.pos = {0, 0, 0}                     , .texCoord = glm::vec2{0.00f, 0.00f}},  //left top
+            Vertex{.pos = downDirection                 , .texCoord = glm::vec2{0.00f, 0.25f}}   //left bottom
+        };
+    }
+    else if (mirror && bottomAligment) {
+        vertices = {
+            Vertex{.pos = {0, 0, 0}                     , .texCoord = glm::vec2{0.25f, 0.25f}},  //left bottom
+            Vertex{.pos = rightDirection - downDirection, .texCoord = glm::vec2{0.00f, 0.00f}},  //right top
+            Vertex{.pos = rightDirection                , .texCoord = glm::vec2{0.00f, 0.25f}},  //right bottom
+            Vertex{.pos = {0, 0, 0}                     , .texCoord = glm::vec2{0.25f, 0.25f}},  //left bottom
+            Vertex{.pos = -downDirection                , .texCoord = glm::vec2{0.25f, 0.00f}},  //left top
+            Vertex{.pos = rightDirection - downDirection, .texCoord = glm::vec2{0.00f, 0.00f}}   //right top
+        };
+    }
+    else if (!mirror && bottomAligment) {
+        vertices = {
+            Vertex{.pos = rightDirection                , .texCoord = glm::vec2{0.25f, 0.25f}},  //right bottom
+            Vertex{.pos = rightDirection - downDirection, .texCoord = glm::vec2{0.25f, 0.00f}},  //right top
+            Vertex{.pos = {0, 0, 0}                     , .texCoord = glm::vec2{0.00f, 0.25f}},  //left bottom
+            Vertex{.pos = rightDirection - downDirection, .texCoord = glm::vec2{0.25f, 0.00f}},  //right top
+            Vertex{.pos = -downDirection                , .texCoord = glm::vec2{0.00f, 0.00f}},  //left top
+            Vertex{.pos = {0, 0, 0}                     , .texCoord = glm::vec2{0.00f, 0.25f}}   //left bottom
+        };
+    }
+
+    for (char sym : text) {
+        glm::vec2 texOffset;
+
+        switch (sym) {
+            case '0': texOffset = {0.00f, 0.00f}; break;
+            case '1': texOffset = {0.25f, 0.00f}; break;
+            case '2': texOffset = {0.50f, 0.00f}; break;
+            case '3': texOffset = {0.75f, 0.00f}; break;
+            case '4': texOffset = {0.00f, 0.25f}; break;
+            case '5': texOffset = {0.25f, 0.25f}; break;
+            case '6': texOffset = {0.50f, 0.25f}; break;
+            case '7': texOffset = {0.75f, 0.25f}; break;
+            case '8': texOffset = {0.00f, 0.50f}; break;
+            case '9': texOffset = {0.25f, 0.50f}; break;
+            case '.': texOffset = {0.50f, 0.50f}; break;
+            case 'm': texOffset = {0.75f, 0.50f}; break;
+        }
+
+        for (Vertex vert : vertices) {
+            output.push_back(Vertex{.pos = vert.pos + topCorner, .texCoord = vert.texCoord + texOffset});
+        }
+
+        topCorner += rightDirection;
+    }
+
+    return output;
 }
